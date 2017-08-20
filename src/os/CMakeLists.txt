@@ -120,12 +120,8 @@ if(HAVE_LIBAIO)
 endif()
 
 if(WITH_SPDK)
+  include(Makedpdk)
   include_directories("${CMAKE_SOURCE_DIR}/src/spdk/include")
-  add_custom_target(build_dpdk
-    COMMAND
-    make config T=x86_64-native-linuxapp-gcc && make EXTRA_CFLAGS="-fPIC"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/spdk/dpdk
-    COMMENT "dpdk building")
   add_custom_target(build_spdk
     COMMAND
     make DPDK_DIR=${CMAKE_SOURCE_DIR}/src/spdk/dpdk/build
