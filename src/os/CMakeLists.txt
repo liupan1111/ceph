@@ -125,6 +125,7 @@ if(WITH_SPDK)
   add_custom_target(build_spdk
     COMMAND
     make DPDK_DIR=${CMAKE_SOURCE_DIR}/src/spdk/dpdk/build
+    DEPENDS build_dpdk
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/src/spdk
     COMMENT "spdk building")
 
