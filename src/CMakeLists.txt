@@ -89,6 +89,10 @@ include(SIMDExt)
 if(HAVE_INTEL)
   set(CMAKE_ASM_COMPILER  ${PROJECT_SOURCE_DIR}/src/yasm-wrapper)
   set(CMAKE_ASM_FLAGS "-f elf64")
+else()
+  if(HAVE_SPDK)
+    set(HAVE_SPDK, FALSE)
+  endif()
 endif()
 
 execute_process(
