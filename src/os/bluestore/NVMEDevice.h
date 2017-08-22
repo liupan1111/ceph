@@ -199,9 +199,6 @@ class NVMEDevice : public BlockDevice {
   SharedDriverData *get_driver() { return driver; }
 
  public:
-  aio_callback_t aio_callback;
-  void *aio_callback_priv;
-
   NVMEDevice(CephContext* cct, aio_callback_t cb, void *cbpriv);
 
   bool supported_bdev_label() override { return false; }
@@ -227,7 +224,7 @@ class NVMEDevice : public BlockDevice {
   int invalidate_cache(uint64_t off, uint64_t len) override;
   int open(const string& path) override;
   void close() override;
-  int collect_metadata(string prefix, map<string,string> *pm) const override;
+  int collect_metadata(const string& prefix, map<string,string> *pm) const override;
 };
 
 #endif

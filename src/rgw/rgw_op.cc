@@ -720,6 +720,12 @@ void RGWGetObjTags::execute()
   store->set_atomic(s->obj_ctx, obj);
 
   op_ret = get_obj_attrs(store, s, obj, attrs);
+  if (op_ret < 0) {
+    ldout(s->cct, 0) << "ERROR: failed to get obj attrs, obj=" << obj
+		     << " ret=" << op_ret << dendl;
+    return;
+  }
+
   auto tags = attrs.find(RGW_ATTR_TAGS);
   if(tags != attrs.end()){
     has_tags = true;
@@ -2171,6 +2177,19 @@ int RGWListBucket::verify_permission()
   if (op_ret < 0) {
     return op_ret;
   }
+  if (!prefix.empty())
+    s->env.emplace(std::piecewise_construct,
+		   std::forward_as_tuple("s3:prefix"),
+		   std::forward_as_tuple(prefix));
+
+  if (!delimiter.empty())
+    s->env.emplace(std::piecewise_construct,
+		   std::forward_as_tuple("s3:delimiter"),
+		   std::forward_as_tuple(delimiter));
+
+  s->env.emplace(std::piecewise_construct,
+		 std::forward_as_tuple("s3:max-keys"),
+		 std::forward_as_tuple(to_string(max)));
 
   if (!verify_bucket_permission(s,
 				list_versions ?
@@ -4485,7 +4504,7 @@ int RGWGetACLs::verify_permission()
 				    rgw::IAM::s3GetObjectAcl :
 				    rgw::IAM::s3GetObjectVersionAcl);
   } else {
-    perm = verify_bucket_permission(s, rgw::IAM::s3GetObjectAcl);
+    perm = verify_bucket_permission(s, rgw::IAM::s3GetBucketAcl);
   }
   if (!perm)
     return -EACCES;

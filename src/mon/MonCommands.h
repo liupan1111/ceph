@@ -199,7 +199,7 @@ COMMAND("auth rm " \
 /*
  * Monitor commands (Monitor.cc)
  */
-COMMAND_WITH_FLAG("compact", "cause compaction of monitor's leveldb storage", \
+COMMAND_WITH_FLAG("compact", "cause compaction of monitor's leveldb/rocksdb storage", \
 	     "mon", "rw", "cli,rest", \
              FLAG(NOFORWARD)|FLAG(DEPRECATED))
 COMMAND_WITH_FLAG("scrub", "scrub the monitor stores", \
@@ -264,7 +264,7 @@ COMMAND("node ls " \
  * Monitor-specific commands under module 'mon'
  */
 COMMAND_WITH_FLAG("mon compact", \
-    "cause compaction of monitor's leveldb storage", \
+    "cause compaction of monitor's leveldb/rocksdb storage", \
     "mon", "rw", "cli,rest", \
     FLAG(NOFORWARD))
 COMMAND_WITH_FLAG("mon scrub",
@@ -554,6 +554,11 @@ COMMAND("osd crush rm-device-class " \
         "name=ids,type=CephString,n=N", \
         "remove class of the osd(s) <id> [<id>...]," \
         "or use <all|any|*> to remove all.", \
+        "osd", "rw", "cli,rest")
+COMMAND("osd crush class rename " \
+        "name=srcname,type=CephString,goodchars=[A-Za-z0-9-_] " \
+        "name=dstname,type=CephString,goodchars=[A-Za-z0-9-_]", \
+        "rename crush device class <srcname> to <dstname>", \
         "osd", "rw", "cli,rest")
 COMMAND("osd crush create-or-move " \
 	"name=id,type=CephOsdName " \
@@ -967,6 +972,12 @@ COMMAND("osd pool application rm " \
         "name=key,type=CephString",
         "removes application <app> metadata key <key> on pool <poolname>",
         "osd", "rw", "cli,rest")
+COMMAND("osd pool application get " \
+        "name=pool,type=CephPoolname,req=fasle " \
+        "name=app,type=CephString,req=false " \
+        "name=key,type=CephString,req=false",
+        "get value of key <key> of application <app> on pool <poolname>",
+        "osd", "r", "cli,rest")
 COMMAND("osd utilization",
 	"get basic pg distribution stats",
 	"osd", "r", "cli,rest")

@@ -924,7 +924,8 @@ void OSDService::set_injectfull(s_names type, int64_t count)
 }
 
 osd_stat_t OSDService::set_osd_stat(const struct store_statfs_t &stbuf,
-                                    vector<int>& hb_peers)
+                                    vector<int>& hb_peers,
+				    int num_pgs)
 {
   uint64_t bytes = stbuf.total;
   uint64_t used = bytes - stbuf.available;
@@ -941,6 +942,7 @@ osd_stat_t OSDService::set_osd_stat(const struct store_statfs_t &stbuf,
     osd_stat.kb = bytes >> 10;
     osd_stat.kb_used = used >> 10;
     osd_stat.kb_avail = avail >> 10;
+    osd_stat.num_pgs = num_pgs;
     return osd_stat;
   }
 }
@@ -955,7 +957,7 @@ void OSDService::update_osd_stat(vector<int>& hb_peers)
     return;
   }
 
-  auto new_stat = set_osd_stat(stbuf, hb_peers);
+  auto new_stat = set_osd_stat(stbuf, hb_peers, osd->get_num_pgs());
   dout(20) << "update_osd_stat " << new_stat << dendl;
   assert(new_stat.kb);
   float ratio = ((float)new_stat.kb_used) / ((float)new_stat.kb);
@@ -2626,10 +2628,7 @@ int OSD::init()
   if (r < 0) {
     derr << __func__ << " authentication failed: " << cpp_strerror(r)
          << dendl;
-    osd_lock.Lock(); // locker is going to unlock this on function exit
-    if (is_stopping())
-      r = 0;
-    goto monout;
+    exit(1);
   }
 
   while (monc->wait_auth_rotating(30.0) < 0) {
@@ -2637,11 +2636,7 @@ int OSD::init()
     ++rotating_auth_attempts;
     if (rotating_auth_attempts > g_conf->max_rotating_auth_attempts) {
         derr << __func__ << " wait_auth_rotating timed out" << dendl;
-        osd_lock.Lock(); // make locker happy
-        if (!is_stopping()) {
-            r = -ETIMEDOUT;
-        }
-        goto monout;
+	exit(1);
     }
   }
 
@@ -2649,16 +2644,14 @@ int OSD::init()
   if (r < 0) {
     derr << __func__ << " unable to update_crush_device_class: "
 	 << cpp_strerror(r) << dendl;
-    osd_lock.Lock();
-    goto monout;
+    exit(1);
   }
 
   r = update_crush_location();
   if (r < 0) {
     derr << __func__ << " unable to update_crush_location: "
          << cpp_strerror(r) << dendl;
-    osd_lock.Lock();
-    goto monout;
+    exit(1);
   }
 
   osd_lock.Lock();
@@ -2691,8 +2684,6 @@ int OSD::init()
   start_boot();
 
   return 0;
-monout:
-  exit(1);
 
 out:
   enable_disable_fuse(true);
@@ -5249,7 +5240,7 @@ void TestOpsSocketHook::test_ops(OSDService *service, ObjectStore *store,
     if (pool < 0 && isdigit(poolstr[0]))
       pool = atoll(poolstr.c_str());
     if (pool < 0) {
-      ss << "Invalid pool" << poolstr;
+      ss << "Invalid pool '" << poolstr << "''";
       return;
     }
 
@@ -9841,8 +9832,8 @@ int OSD::init_op_flags(OpRequestRef& op)
     if ((iter->op.op == CEPH_OSD_OP_WATCH &&
 	 iter->op.watch.op == CEPH_OSD_WATCH_OP_PING)) {
       /* This a bit odd.  PING isn't actually a write.  It can't
-       * result in an update to the object_info.  PINGs also aren'ty
-       * resent, so there's no reason to write out a log entry
+       * result in an update to the object_info.  PINGs also aren't
+       * resent, so there's no reason to write out a log entry.
        *
        * However, we pipeline them behind writes, so let's force
        * the write_ordered flag.
@@ -10263,7 +10254,7 @@ void OSD::ShardedOpWQ::_process(uint32_t thread_index, heartbeat_handle_d *hb)
     OSDMapRef osdmap = sdata->waiting_for_pg_osdmap;
     if (osdmap->is_up_acting_osd_shard(item.first, osd->whoami)) {
       dout(20) << __func__ << " " << item.first
-	       << " no pg, should exist, will wait" << " on " << *qi << dendl;
+	       << " no pg, should exist, will wait on " << *qi << dendl;
       slot.to_process.push_front(*qi);
       slot.waiting_for_pg = true;
     } else if (qi->get_map_epoch() > osdmap->get_epoch()) {

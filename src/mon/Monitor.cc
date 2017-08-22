@@ -2359,6 +2359,7 @@ void Monitor::health_to_clog_update_conf(const std::set<std::string> &changed)
   if (changed.count("mon_health_to_clog")) {
     if (!cct->_conf->mon_health_to_clog) {
       health_events_cleanup();
+      return;
     } else {
       if (!health_tick_event) {
         health_tick_start();
@@ -2709,7 +2710,12 @@ void Monitor::get_cluster_status(stringstream &ss, Formatter *f)
 
   if (f) {
     f->dump_stream("fsid") << monmap->get_fsid();
-    get_health_status(false, f, nullptr);
+    if (osdmon()->osdmap.require_osd_release >= CEPH_RELEASE_LUMINOUS) {
+      get_health_status(false, f, nullptr);
+    } else {
+      list<string> health_str;
+      get_health(health_str, nullptr, f);
+    }
     f->dump_unsigned("election_epoch", get_epoch());
     {
       f->open_array_section("quorum");
@@ -3601,7 +3607,7 @@ void Monitor::handle_command(MonOpRequestRef op)
 
     mdsmon()->count_metadata("ceph_version", &mds);
     f->open_object_section("mds");
-    for (auto& p : mon) {
+    for (auto& p : mds) {
       f->dump_int(p.first.c_str(), p.second);
       overall[p.first] += p.second;
     }

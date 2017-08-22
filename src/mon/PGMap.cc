@@ -396,7 +396,7 @@ void PGMapDigest::recovery_summary(Formatter *f, list<string> *psl,
     } else {
       ostringstream ss;
       ss << delta_sum.stats.sum.num_objects_unfound
-         << "/" << delta_sum.stats.sum.num_objects << " unfound (" << b << "%)";
+         << "/" << delta_sum.stats.sum.num_objects << " objects unfound (" << b << "%)";
       psl->push_back(ss.str());
     }
   }
@@ -3068,7 +3068,7 @@ void PGMap::get_health_checks(
     }
     if (nearfull_pools) {
       ostringstream ss;
-      ss << nearfull_pools << " pools full";
+      ss << nearfull_pools << " pools nearfull";
       auto& d = checks->add("POOL_NEAR_FULL", HEALTH_WARN, ss.str());
       d.detail.swap(nearfull_detail);
     }
@@ -3097,7 +3097,7 @@ void PGMap::get_health_checks(
     snprintf(b, sizeof(b), "%.3lf", pc);
     ostringstream ss;
     ss << pg_sum.stats.sum.num_objects_unfound
-       << "/" << pg_sum.stats.sum.num_objects << " unfound (" << b << "%)";
+       << "/" << pg_sum.stats.sum.num_objects << " objects unfound (" << b << "%)";
     auto& d = checks->add("OBJECT_UNFOUND", HEALTH_WARN, ss.str());
 
     for (auto& p : pg_stat) {
@@ -4567,6 +4567,9 @@ int reweight::by_utilization(
       if (pools && pools->count(pg.first.pool()) == 0)
 	continue;
       for (const auto acting : pg.second.acting) {
+        if (!osdmap.exists(acting)) {
+          continue;
+        }
 	if (acting >= (int)pgs_by_osd.size())
 	  pgs_by_osd.resize(acting);
 	if (pgs_by_osd[acting] == 0) {
